@@ -1,3 +1,4 @@
 .lake_cache
 __pycache__/
 api_key.txt
+data/
