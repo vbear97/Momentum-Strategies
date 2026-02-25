@@ -4,27 +4,35 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from tqdm import tqdm
 from statsmodels.tsa.stattools import acf
-
-lookback = np.arange(1, 30)
-holding = np.arange(1,5)
+from scipy import stats
 
 def test_correlation(prices: pd.Series, lookback, holding) -> pd.DataFrame:
-    results = {'lookback': [], 'holding': [], 'correlation': []}
+    '''Calculate correlation between lookback and holding, making sure observations are independent'''
+    results = {'lookback': [], 'holding': [], 'correlation': [], 'pvalue': [], 'n': []}
     for lb in lookback: 
-        for h in holding: 
+        for h in holding:
+            step = max(lb, h) #Avoid any overlap between pairs 
+            
+            lookback_returns = (prices - prices.shift(lb)) / prices.shift(lb)
+            hold_returns = (prices.shift(-h) - prices) / prices
+            
+            lookback_returns = lookback_returns.iloc[lb::step]
+            hold_returns = hold_returns.iloc[lb::step]
+            
+            # drop NaNs jointly
+            mask = lookback_returns.notna() & hold_returns.notna()
+            lr = lookback_returns[mask]
+            hr = hold_returns[mask]
+            
+            r, p = stats.pearsonr(lr, hr)
+            
             results['lookback'].append(lb)
             results['holding'].append(h)
-            #calculate correlation 
-            lookback_prices = prices.shift(lb)
-            hold_prices = prices.shift(-h)
-            lookback_returns = (prices - lookback_prices)/lookback_prices
-            hold_returns = (hold_prices - prices)/prices 
-            results['correlation'].append(lookback_returns.corr(hold_returns))
+            results['correlation'].append(r)
+            results['pvalue'].append(p)
+            results['n'].append(len(lr))
     
     return pd.DataFrame(results)
-
-import numpy as np
-import pandas as pd
 
 def block_permutation_test(x, y, block_size=30, n_permutations=10000):
     """
