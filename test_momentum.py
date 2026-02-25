@@ -6,6 +6,8 @@ from tqdm import tqdm
 from statsmodels.tsa.stattools import acf
 from scipy import stats
 
+CONFIDENCE_BOUND = 1.96
+
 def test_correlation(prices: pd.Series, lookback, holding) -> pd.DataFrame:
     '''Calculate correlation between lookback and holding, making sure observations are independent'''
     results = {'lookback': [], 'holding': [], 'correlation': [], 'pvalue': [], 'n': []}
@@ -34,7 +36,7 @@ def test_correlation(prices: pd.Series, lookback, holding) -> pd.DataFrame:
     
     return pd.DataFrame(results)
 
-def block_permutation_test(x, y, block_size=30, n_permutations=10000):
+def block_permutation_test(x, y, block_size=None, n_permutations=10000):
     """
     Vectorized block permutation test for two pandas Series.
     
@@ -42,7 +44,7 @@ def block_permutation_test(x, y, block_size=30, n_permutations=10000):
     -----------
     x : pd.Series (predictor, e.g., imbalance)
     y : pd.Series (outcome, e.g., forward returns)
-    block_size : int
+    block_size : int, if None will be determined by ACF
     n_permutations : int
     
     Returns:
@@ -55,39 +57,36 @@ def block_permutation_test(x, y, block_size=30, n_permutations=10000):
     y_vals = data['y'].values
     n = len(x_vals)
     
+    # Determine block size from ACF if not provided
+    if block_size is None:
+        block_size = get_block_size(data['y'])
+    
     # Observed correlation
     observed_corr = np.corrcoef(x_vals, y_vals)[0, 1]
     
-    # Setup blocks
+    # Setup blocks - trim both x and y to exact multiple of block_size
     n_blocks = n // block_size
-    remainder = n % block_size
+    trim = n_blocks * block_size
+    x_vals = x_vals[:trim]
+    y_vals = y_vals[:trim]
     
-    # Reshape y into blocks (ignore remainder for now)
-    y_blocks = y_vals[:n_blocks * block_size].reshape(n_blocks, block_size)
+    y_blocks = y_vals.reshape(n_blocks, block_size)
     
     # Pre-allocate results
     permuted_corrs = np.zeros(n_permutations)
     
+    print(f"n={n}, block_size={block_size}, n_blocks={n_blocks}")
     print(f"Running {n_permutations} permutations...")
     
     for i in tqdm(range(n_permutations)):
-        # Shuffle block indices
+        # Shuffle block indices and reconstruct y
         shuffled_indices = np.random.permutation(n_blocks)
-        
-        # Reconstruct y by shuffling blocks
         y_permuted = y_blocks[shuffled_indices].flatten()
         
-        # Handle remainder if exists
-        if remainder > 0:
-            # Add remainder from random block
-            random_block_idx = np.random.randint(0, n_blocks)
-            y_permuted = np.concatenate([y_permuted, 
-                                         y_blocks[random_block_idx, :remainder]])
-        
-        # Calculate correlation (vectorized)
+        # Calculate correlation
         permuted_corrs[i] = np.corrcoef(x_vals, y_permuted)[0, 1]
     
-    # Calculate p-value
+    # Calculate two-sided p-value
     p_value = np.mean(np.abs(permuted_corrs) >= np.abs(observed_corr))
     
     return {
@@ -111,7 +110,7 @@ def get_block_size(series, max_lag=500):
     acf_vals = acf(clean, nlags=max_lag, fft=True)
     
     # 95% confidence bound
-    threshold = 1.96 / np.sqrt(n)
+    threshold = CONFIDENCE_BOUND / np.sqrt(n)
     
     # Find first insignificant lag
     for lag in range(1, len(acf_vals)):
@@ -120,9 +119,7 @@ def get_block_size(series, max_lag=500):
             print(f"Block size: {lag}")
             return lag
     
-    # If never insignificant, use max
-    print(f"ACF still significant at lag {max_lag}")
-    print(f"Block size: {max_lag}")
+    print(f"ACF still significant at lag {max_lag}, using max_lag as block size")
     return max_lag
 
     
