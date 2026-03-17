@@ -25,11 +25,11 @@ def simple_momentum_backtest(prices: pd.Series, lookback: int, holding: int):
     ret = direction * fr
     
     print(f"lb={lookback}, h={holding} | "
-          f"mean={net_ret.mean()*10000:.2f} bps | "
-          f"hit={( net_ret > 0).mean():.2%} | "
-          f"n={len(net_ret)}")
+          f"mean={ret.mean()*10000:.2f} bps | "
+          f"hit={( ret > 0).mean():.2%} | "
+          f"n={len(ret)}")
     
-    return net_ret
+    return ret
 
 def test_correlation(prices: pd.Series, lookback, holding, 
                      method: str = 'pearson',  # 'pearson' or 'spearman'

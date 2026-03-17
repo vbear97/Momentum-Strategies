@@ -1,15 +1,13 @@
 # Momentum Strategies (Cryptocurrency Order Book Data)
 
-This repo investigates whether there are momentum trading signals based on high frequency cryptocurrency level 1 order book data. 
+This repo investigates whether there are momentum trading signals based on high frequency (10s) cryptocurrency data. 
 
 ## Description 
 
 Investigates the profitability of momentum-based trading signals on high-frequency cryptocurrency data sourced via Crypto Lake. Covers: 
 
 - Data cleaning + visualisation 
-- Signal construction 
-- Statistical testing for return persistence 
-- Backtesting under more realistic trading conditions, including bid/ask spreads and exchange fees.
+- Signal construction & testing 
 
 ## Key Results - Summary 
 TODO 
